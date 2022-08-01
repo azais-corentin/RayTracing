@@ -17,7 +17,7 @@ class MainWindow : public QMainWindow {
     ~MainWindow();
 
   private slots:
-    void start_render();
+    void render();
 
   private:
     Ui::MainWindow *ui;

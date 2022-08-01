@@ -2,7 +2,8 @@
     "name": "raytracing",
     "version": "0.1.0",
     "dependencies": [
-        "eigen3"
+        "eigen3",
+        "fmt"
     ],
     "builtin-baseline": "692304eda94362c793f0cfcab74e506d2097b28f"
 }

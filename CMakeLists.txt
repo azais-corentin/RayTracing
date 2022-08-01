@@ -1,18 +1,12 @@
 cmake_minimum_required(VERSION 3.23)
 
+include(FetchContent)
+
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake"
   CACHE STRING "Vcpkg toolchain file")
 
 project(RayTracing VERSION 0.1 LANGUAGES CXX)
 
-#set(CMAKE_AUTOUIC ON)
-#set(CMAKE_AUTOMOC ON)
-#set(CMAKE_AUTORCC ON)
-
-
-#find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-#find_package(Qt6 REQUIRED COMPONENTS Widgets)
-#find_package(Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 qt_standard_project_setup()
 
@@ -25,6 +19,7 @@ target_sources(RayTracing PRIVATE
     mainwindow.cc
     mainwindow.hh
     mainwindow.ui
+    ray.hh ray.cc
 )
 
 target_include_directories(RayTracing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -45,6 +40,21 @@ set_target_properties(RayTracing PROPERTIES
 # Libraries
 find_package(Eigen3)
 target_link_libraries(RayTracing PRIVATE Eigen3::Eigen)
+
+FetchContent_Declare(
+    tracy
+    GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+    GIT_TAG        v0.8.2.1
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
+FetchContent_MakeAvailable(tracy)
+
+option(TRACY_ENABLE "" ON)
+target_link_libraries(RayTracing PUBLIC Tracy::TracyClient)
+
+find_package(fmt CONFIG REQUIRED)
+target_link_libraries(RayTracing PRIVATE fmt::fmt)
 
 target_link_libraries(RayTracing PRIVATE Qt6::Widgets)
 qt_finalize_executable(RayTracing)
