@@ -1,9 +1,9 @@
 #include "mainwindow.hh"
 #include "./ui_mainwindow.h"
 
-#include <span>
+#include <Eigen/Dense>
 
-#include <thread>
+#include <span>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
@@ -34,13 +34,13 @@ void MainWindow::start_render() {
 
     std::span<QRgb> pixel{reinterpret_cast<QRgb *>(image_.bits()), width * height};
 
-    timer_.start();
     std::size_t n = 0;
+    Eigen::Vector3d center{width / 2., height / 2., 0.};
 
-    for (std::size_t j = 0; j < height; ++j) {
+    timer_.start();
+    for (std::size_t j = height - 1; j <= height; --j) { // works thanks to the underflow of std::size_t
         for (std::size_t i = 0; i < width; ++i) {
             const std::size_t xy = i + (height - j - 1) * width;
-            n++;
 
             const uint8_t r = 255 * i / (width - 1.);
             const uint8_t g = 255 * j / (height - 1.);
@@ -50,22 +50,20 @@ void MainWindow::start_render() {
 
             // image_.setPixel(static_cast<int>(i), static_cast<int>(j), qRgb(r, g, b));
 
-            /*
-            if (n % 100 == 0) {
+            if (xy % 100 == 0) {
+                // qDebug() << "distance:" << distance;
                 ui->eImage->setPixmap(QPixmap::fromImage(image_));
                 ui->eProgress->setValue(static_cast<int>(n));
                 QCoreApplication::processEvents(QEventLoop::AllEvents);
-            }*/
+            }
 
             // std::this_thread::sleep_for(std::chrono::milliseconds{1});
         }
     }
+
     const auto time = timer_.nsecsElapsed();
-
-    ui->eImage->setPixmap(QPixmap::fromImage(image_));
-    ui->eProgress->setValue(static_cast<int>(n));
-
     qDebug() << "Took" << time / (1. * width * height) << "ns/op";
 
     ui->eImage->setPixmap(QPixmap::fromImage(image_));
+    ui->eProgress->setValue(static_cast<int>(n));
 }

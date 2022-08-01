@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.23)
 
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+  CACHE STRING "Vcpkg toolchain file")
+
 project(RayTracing VERSION 0.1 LANGUAGES CXX)
 
 #set(CMAKE_AUTOUIC ON)
@@ -40,5 +43,8 @@ set_target_properties(RayTracing PROPERTIES
 )
 
 # Libraries
+find_package(Eigen3)
+target_link_libraries(RayTracing PRIVATE Eigen3::Eigen)
+
 target_link_libraries(RayTracing PRIVATE Qt6::Widgets)
 qt_finalize_executable(RayTracing)
