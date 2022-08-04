@@ -1,3 +1,6 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/Microsoft/vcpkg.git
+[submodule "thirdparty/EigenRand"]
+	path = thirdparty/EigenRand
+	url = https://github.com/bab2min/EigenRand.git

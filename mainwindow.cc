@@ -1,12 +1,17 @@
 #include "mainwindow.hh"
 #include "./ui_mainwindow.h"
-#include "ray.hh"
+#include "RayTracing/Camera.hh"
+#include "RayTracing/Components.hh"
+#include "RayTracing/Random.hh"
 
 #include <Eigen/Dense>
 #include <Tracy.hpp>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
+#include <taskflow/taskflow.hpp>
 
 #include <span>
+
+using namespace RayTracing;
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
@@ -16,34 +21,23 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->eImage->setPixmap(QPixmap::fromImage(image_));
 
     connect(ui->bRender, &QPushButton::clicked, this, &MainWindow::render);
+
+    // Add a single sphere to the registry
+    {
+        const auto sphere = registry_.create();
+        registry_.emplace<Components::Sphere>(sphere, Point3{0.0, 0.0, -1.0}, 0.5);
+    }
+    {
+        const auto sphere = registry_.create();
+        registry_.emplace<Components::Sphere>(sphere, Point3{0.0, -100.5, -1.0}, 100.0);
+    }
 }
 
 MainWindow::~MainWindow() { delete ui; }
 
-using namespace RayTracing;
-
-QRgb color(const Color &color) { return qRgb(255 * color.x(), 255 * color.y(), 255 * color.z()); }
-
-bool hit_sphere(const Point3 &center, double radius, const Ray &r) {
-    const auto oc = r.origin() - center;
-
-    const auto a = r.direction().dot(r.direction());
-    const auto b = 2.0 * oc.dot(r.direction());
-    const auto c = oc.dot(oc) - radius * radius;
-
-    const auto discriminant = b * b - 4 * a * c;
-    return discriminant > 0;
-}
-
-Color rayColor(const Ray &r) {
-    ZoneScoped;
-    if (hit_sphere(Point3{0, 0, -1}, 0.5, r)) { return Color{1.0, 0., 0.}; }
-
-    const Vector3 unitDirection = r.direction().normalized();
-
-    const auto t = 0.5 * (unitDirection.y() + 1.0);
-
-    return (1.0 - t) * Color{1.0, 1.0, 1.0} + t * Color{0.5, 0.7, 1.0};
+QRgb color(const Color &color) {
+    Color clamped = color.cwiseMin(0.999).cwiseMax(0.0);
+    return qRgb(255 * clamped.x(), 255 * clamped.y(), 255 * clamped.z());
 }
 
 void MainWindow::render() {
@@ -57,51 +51,142 @@ void MainWindow::render() {
 
     const std::size_t imageWidth  = image_.size().width();
     const std::size_t imageHeight = image_.size().height();
-    ui->eProgress->setMaximum(static_cast<int>(imageWidth * imageHeight));
 
     // Image data
     std::span<QRgb> pixels{reinterpret_cast<QRgb *>(image_.bits()), imageWidth * imageHeight};
 
     // Camera
-    const double aspectRatio = 16.0 / 9.0;
+    Camera camera;
 
-    const double viewportHeight = 2.0;
-    const double viewportWidth  = aspectRatio * viewportHeight;
-    const double focalLength    = 1.0;
+    tf::Executor executor;
+    tf::Taskflow taskflow;
 
-    const RayTracing::Point3 origin{0., 0., 0};
-    const RayTracing::Vector3 horizontal{viewportWidth, 0., 0.};
-    const RayTracing::Vector3 vertical{0, viewportHeight, 0};
-    const auto lowerLeftCorner = origin - horizontal / 2. - vertical / 2. - RayTracing::Vector3{0., 0., focalLength};
+    constexpr std::size_t tileSize = 64;
+    std::size_t tileCount          = 0;
+    std::size_t samplesPerPixel    = 10;
+    int32_t maximumDepth           = 10;
 
     // Render
+    for (std::size_t j = 0; j < imageHeight; j += tileSize) {
+        for (std::size_t i = 0; i < imageWidth; i += tileSize) {
+            tileCount++;
+            taskflow.emplace([&, i_start = i, j_start = j] {
+                RandomVector randomVector{-1.0, 1.0};
+                RandomDouble randomDouble;
 
-    timer_.start();
-    for (std::size_t j = imageHeight - 1; j <= imageHeight; --j) { // works thanks to the underflow of std::size_t
-        for (std::size_t i = 0; i < imageWidth; ++i) {
-            // ZoneScopedN("Pixel");
+                std::size_t i_end = std::min(i_start + tileSize, imageWidth);
+                std::size_t j_end = std::min(j_start + tileSize, imageHeight);
 
-            const std::size_t n = i + (imageHeight - j - 1) * imageWidth;
+                for (std::size_t i = i_start; i < i_end; i++) {
+                    for (std::size_t j = j_start; j < j_end; j++) {
+                        const std::size_t n = i + (imageHeight - j - 1) * imageWidth;
+                        Color pixelColor    = Color::Zero();
 
-            const double u = i / (imageWidth - 1.);
-            const double v = j / (imageHeight - 1.);
+                        for (std::size_t sample = 0; sample < samplesPerPixel; sample++) {
 
-            const RayTracing::Ray r{origin, lowerLeftCorner + u * horizontal + v * vertical - origin};
+                            const double u = (i + randomDouble()) / (imageWidth - 1.);
+                            const double v = (j + randomDouble()) / (imageHeight - 1.);
 
-            pixels[n] = color(rayColor(r));
+                            const Ray ray = camera.getRay(u, v);
 
-            /*
-            if (n % 10000 == 0) {
+                            pixelColor += rayColor(randomVector, ray, maximumDepth);
+                        }
+                        pixels[n] = color(pixelColor / samplesPerPixel);
+
+                        /*
+                        if ((timer_.elapsed() - last_time) > 10) {
+                            last_time = timer_.elapsed();
+
+                            ui->eImage->setPixmap(QPixmap::fromImage(image_));
+                            ui->eProgress->setValue(static_cast<int>(n));
+                            QCoreApplication::processEvents(QEventLoop::AllEvents);
+                        }
+                        */
+                    }
+                }
+
+                // emit tileReady();
+
+                /*
+                std::unique_lock lock(mutex);
                 ui->eImage->setPixmap(QPixmap::fromImage(image_));
-                ui->eProgress->setValue(static_cast<int>(n));
+                ui->eProgress->setValue(ui->eProgress->value() + 1);
                 QCoreApplication::processEvents(QEventLoop::AllEvents);
-            }
-            */
+                */
+            });
         }
     }
-    const auto time = timer_.nsecsElapsed();
-    qDebug() << "Took" << time / (1. * imageWidth * imageHeight) << "ns/op";
+
+    ui->eProgress->setMaximum(static_cast<int>(tileCount));
+    ui->eProgress->setValue(0);
+
+    const auto start = std::chrono::high_resolution_clock::now();
+    auto future      = executor.run(taskflow);
+    std::future_status status;
+    do {
+        status = future.wait_for(std::chrono::nanoseconds(0));
+        QCoreApplication::processEvents(QEventLoop::AllEvents);
+    } while (status != std::future_status::ready);
+    const auto end       = std::chrono::high_resolution_clock::now();
+    const double time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+    /*
+    std::random_device rd;
+    std::default_random_engine gen(rd());
+    std::uniform_real_distribution<double> rng(0, 1);
+
+    std::size_t count = 10'000'000;
+    timer_.restart();
+    for (std::size_t i = 0; i < count; i++) {
+        volatile double rnd = rng(gen);
+        (void)rnd;
+    }
+    const double time2 = timer_.nsecsElapsed();
+    spdlog::info("random generationg took {:.3} ns/number", time2 / count);
+    */
+
+    spdlog::info("Ray tracing took {:.3} us/pixel ({:.3} ns/sample)", time_ns / 1000. / (imageWidth * imageHeight),
+                 time_ns / (imageWidth * imageHeight) / samplesPerPixel);
 
     ui->eImage->setPixmap(QPixmap::fromImage(image_));
     ui->eProgress->setValue(ui->eProgress->maximum());
+}
+
+Color MainWindow::rayColor(RandomVector &randomVectorGenerator, const RayTracing::Ray &ray, int32_t depth) {
+    ZoneScoped;
+
+    // Limit number of ray bounce, stop gathering light
+    if (depth <= 0) { return Color::Zero(); }
+
+    const auto closestHit = hit(ray, 0, std::numeric_limits<double>::infinity());
+
+    if (closestHit) {
+        // Object color
+        Point3 target = closestHit->point_ + closestHit->normal_ + randomVectorInSphere(randomVectorGenerator);
+        // Recursively gather light
+        return 0.5 * rayColor(randomVectorGenerator, Ray{closestHit->point_, target - closestHit->point_}, depth - 1);
+        // Normal color
+        // return 0.5 * (closestHit->normal_ + Vector3::Ones());
+    }
+
+    // Background color
+    const auto t = 0.5 * (ray.direction().normalized().y() + 1.0);
+    return (1.0 - t) * Color::Ones() + t * Color{0.5, 0.7, 1.0};
+}
+
+std::optional<RayTracing::HitRecord> MainWindow::hit(const RayTracing::Ray &ray, double tMinimum, double tMaximum) {
+    std::optional<HitRecord> closestHit;
+
+    auto sphere_view = registry_.view<const Components::Sphere>();
+
+    sphere_view.each([&](const Components::Sphere &sphere) {
+        const auto hitRecord = sphere.hit(ray, tMinimum, tMaximum);
+
+        if (hitRecord) {
+            tMaximum   = hitRecord->t_; // Update maximum t
+            closestHit = *hitRecord;    // Update closestHit
+        }
+    });
+
+    return closestHit;
 }

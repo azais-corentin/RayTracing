@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.22)
 
 include(FetchContent)
 
@@ -19,8 +19,10 @@ target_sources(RayTracing PRIVATE
     mainwindow.cc
     mainwindow.hh
     mainwindow.ui
-    ray.hh ray.cc
 )
+
+add_subdirectory(RayTracing)
+add_subdirectory(thirdparty)
 
 target_include_directories(RayTracing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -28,7 +30,10 @@ target_include_directories(RayTracing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(RayTracing PRIVATE cxx_std_20)
 set_target_properties(RayTracing PROPERTIES CXX_EXTENSIONS OFF)
 target_compile_options(RayTracing PRIVATE /W4)
-
+## Enable address sanitizer in debug mode
+target_compile_options(RayTracing PUBLIC $<$<CONFIG:Debug>:-fsanitize=address>)
+target_link_options(RayTracing PUBLIC $<$<CONFIG:Debug>:-fsanitize=address>)
+## Qt specific
 set_target_properties(RayTracing PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
@@ -51,10 +56,16 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(tracy)
 
 option(TRACY_ENABLE "" ON)
-target_link_libraries(RayTracing PUBLIC Tracy::TracyClient)
-
 find_package(fmt CONFIG REQUIRED)
-target_link_libraries(RayTracing PRIVATE fmt::fmt)
+find_package(spdlog CONFIG REQUIRED)
+find_package(EnTT CONFIG REQUIRED)
+
+target_link_libraries(RayTracing PRIVATE
+    Tracy::TracyClient
+    fmt::fmt spdlog::spdlog
+    EnTT::EnTT
+    EigenRand::EigenRand
+)
 
 target_link_libraries(RayTracing PRIVATE Qt6::Widgets)
 qt_finalize_executable(RayTracing)

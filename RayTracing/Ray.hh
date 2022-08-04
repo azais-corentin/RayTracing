@@ -8,13 +8,14 @@ using Vector3 = Eigen::Vector3d;
 using Point3  = Eigen::Vector3d;
 using Color   = Eigen::Vector3d;
 
-class Ray {
-  public:
-    Ray() = default;
+struct Ray {
     Ray(const Point3 &origin, const Vector3 &direction);
 
-    Point3 origin() const;
-    Vector3 direction() const;
+    const Point3 &origin() const;
+    Point3 &origin();
+
+    const Vector3 &direction() const;
+    Vector3 &direction();
 
     Eigen::Vector3d at(double t) const;
 

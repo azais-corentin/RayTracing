@@ -3,7 +3,13 @@
     "version": "0.1.0",
     "dependencies": [
         "eigen3",
-        "fmt"
+        "fmt",
+        "spdlog",
+        "taskflow",
+        {
+            "name": "entt",
+            "version>=": "3.10.1"
+        }
     ],
     "builtin-baseline": "692304eda94362c793f0cfcab74e506d2097b28f"
 }
