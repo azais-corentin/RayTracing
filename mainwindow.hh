@@ -24,12 +24,15 @@ class MainWindow : public QMainWindow {
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+  signals:
+    void tileFinished();
+
   private slots:
     void render();
 
     RayTracing::Color rayColor(RayTracing::RandomVector &randomVectorGenerator, const RayTracing::Ray &ray,
-                               int32_t depth);
-    std::optional<RayTracing::HitRecord> hit(const RayTracing::Ray &ray, double tMinimum, double tMaximum);
+                               int32_t depth) const;
+    std::optional<RayTracing::HitRecord> hit(const RayTracing::Ray &ray, double tMinimum, double tMaximum) const;
 
   private:
     Ui::MainWindow *ui;
@@ -38,4 +41,6 @@ class MainWindow : public QMainWindow {
     QElapsedTimer timer_;
 
     entt::registry registry_;
+
+    std::size_t tilesFinished = 0;
 };

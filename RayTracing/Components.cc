@@ -1,5 +1,5 @@
-#include "Components.hh"
-#include "HitRecord.hh"
+#include <RayTracing/Components.hh>
+#include <RayTracing/HitRecord.hh>
 
 namespace RayTracing::Components {
 
@@ -16,7 +16,6 @@ std::optional<HitRecord> Sphere::hit(const Ray &ray, double tMinimum, double tMa
 
     const double sqrtd = std::sqrt(discriminant);
 
-    /*
     auto root = (-half_b - sqrtd) / a;
     if (root < tMinimum or tMaximum < root) {
         root = (-half_b + sqrtd) / a;
@@ -25,7 +24,8 @@ std::optional<HitRecord> Sphere::hit(const Ray &ray, double tMinimum, double tMa
 
     const auto point = ray.at(root);
     return HitRecord{ray, (point - center) / radius, point, root};
-    */
+
+    /*
 
     // Find the nearest root that lies in the acceptable range
 
@@ -49,5 +49,6 @@ std::optional<HitRecord> Sphere::hit(const Ray &ray, double tMinimum, double tMa
 
     // No hit
     return std::nullopt;
+    */
 }
 } // namespace RayTracing::Components

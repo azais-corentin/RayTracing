@@ -9,7 +9,8 @@
         {
             "name": "entt",
             "version>=": "3.10.1"
-        }
+        },
+        "bext-ut"
     ],
     "builtin-baseline": "692304eda94362c793f0cfcab74e506d2097b28f"
 }

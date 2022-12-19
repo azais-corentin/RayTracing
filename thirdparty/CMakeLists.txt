@@ -4,6 +4,6 @@ cmake_minimum_required(VERSION 3.22)
 add_library(EigenRand INTERFACE)
 add_library(EigenRand::EigenRand ALIAS EigenRand)
 
-target_include_directories(RayTracing PRIVATE
+target_include_directories(EigenRand INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/EigenRand
 )

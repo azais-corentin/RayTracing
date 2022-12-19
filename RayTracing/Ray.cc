@@ -1,4 +1,4 @@
-#include "Ray.hh"
+#include <RayTracing/Ray.hh>
 
 namespace RayTracing {
 

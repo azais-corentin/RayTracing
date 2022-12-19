@@ -1,4 +1,4 @@
-#include "Camera.hh"
+#include <RayTracing/Camera.hh>
 
 namespace RayTracing {
 

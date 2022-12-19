@@ -5,16 +5,18 @@ include(FetchContent)
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake"
   CACHE STRING "Vcpkg toolchain file")
 
-project(RayTracing VERSION 0.1 LANGUAGES CXX)
+project(RayTracingInAWeekend VERSION 0.1 LANGUAGES CXX)
+
+option(BUILD_TESTS "Build the tests" ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 qt_standard_project_setup()
 
 # Executable
-qt_add_executable(RayTracing MANUAL_FINALIZATION)
+qt_add_executable(RayTracingInAWeekend MANUAL_FINALIZATION)
 
 # Sources
-target_sources(RayTracing PRIVATE
+target_sources(RayTracingInAWeekend PRIVATE
     main.cc
     mainwindow.cc
     mainwindow.hh
@@ -24,17 +26,21 @@ target_sources(RayTracing PRIVATE
 add_subdirectory(RayTracing)
 add_subdirectory(thirdparty)
 
-target_include_directories(RayTracing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(RayTracingInAWeekend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Compilation options
-target_compile_features(RayTracing PRIVATE cxx_std_20)
-set_target_properties(RayTracing PROPERTIES CXX_EXTENSIONS OFF)
-target_compile_options(RayTracing PRIVATE /W4)
+target_compile_features(RayTracingInAWeekend PRIVATE cxx_std_20)
+set_target_properties(RayTracingInAWeekend PROPERTIES CXX_EXTENSIONS OFF)
+if(MSVC)
+  target_compile_options(RayTracingInAWeekend PRIVATE /W4)
+else()
+  target_compile_options(RayTracingInAWeekend PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
 ## Enable address sanitizer in debug mode
-target_compile_options(RayTracing PUBLIC $<$<CONFIG:Debug>:-fsanitize=address>)
-target_link_options(RayTracing PUBLIC $<$<CONFIG:Debug>:-fsanitize=address>)
+#target_compile_options(RayTracingInAWeekend PUBLIC $<$<CONFIG:Debug>:-fstack-protector-all -fno-omit-frame-pointer>)
+#target_link_options(RayTracingInAWeekend PUBLIC $<$<CONFIG:Debug>:-fstack-protector-all -fno-omit-frame-pointer>)
 ## Qt specific
-set_target_properties(RayTracing PROPERTIES
+set_target_properties(RayTracingInAWeekend PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
@@ -43,9 +49,7 @@ set_target_properties(RayTracing PROPERTIES
 )
 
 # Libraries
-find_package(Eigen3)
-target_link_libraries(RayTracing PRIVATE Eigen3::Eigen)
-
+option(TRACY_ENABLE "" OFF) # Toggle as needed then reload cache
 FetchContent_Declare(
     tracy
     GIT_REPOSITORY https://github.com/wolfpld/tracy.git
@@ -55,17 +59,24 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tracy)
 
-option(TRACY_ENABLE "" ON)
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 
-target_link_libraries(RayTracing PRIVATE
+target_link_libraries(RayTracingInAWeekend PRIVATE
+    RayTracing::RayTracing
     Tracy::TracyClient
     fmt::fmt spdlog::spdlog
     EnTT::EnTT
-    EigenRand::EigenRand
 )
 
-target_link_libraries(RayTracing PRIVATE Qt6::Widgets)
-qt_finalize_executable(RayTracing)
+target_link_libraries(RayTracingInAWeekend PRIVATE Qt6::Widgets)
+qt_finalize_executable(RayTracingInAWeekend)
+
+
+# Testing only available if this is the main app
+if(BUILD_TESTS)
+  enable_testing()
+
+  add_subdirectory(tests)
+endif()

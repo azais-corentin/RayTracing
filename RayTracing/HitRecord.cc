@@ -1,4 +1,4 @@
-#include "HitRecord.hh"
+#include <RayTracing/HitRecord.hh>
 
 namespace RayTracing {
 
